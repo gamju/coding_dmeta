@@ -41,24 +41,7 @@ def random_affine(image):
             for x in range(rotated_image.shape[1]):
                 rotated_image[y,x] = image[x, image.shape[1] - y - 1]
         image = rotated_image
-    
-    # out_rotated_image = np.zeros([image.shape[1], image.shape[0], image.shape[2]])
-    # for y in range(out_rotated_image.shape[0]):
-    #     for x in range(out_rotated_image.shape[1]):
-    #         out_rotated_image[y,x] = org_image[x, image.shape[1] - y -1]
-    
-    # out_org_image = np.zeros([image.shape[0], image.shape[1], image.shape[2]])
-    # for y in range(out_org_image.shape[0]):
-    #     for x in range(out_org_image.shape[1]):
-    #         out_org_image[y,x] = out_rotated_image[image.shape[1] - x - 1, y]
 
-    # mirrir_image = org_image[:, ::-1]
-    # flip_image= org_image[::-1, :]
-    
-    # cv2.imwrite("mirrir_image.jpg", mirrir_image)
-    # cv2.imwrite("flip_image.jpg", flip_image)
-    # cv2.imwrite("out_rotated_image.jpg", out_rotated_image)
-    # cv2.imwrite("out_org_image.jpg", out_org_image)
     return image
 
 def cut_image(image_path, columns, rows):

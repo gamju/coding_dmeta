@@ -35,20 +35,106 @@ def get_edge(image, h_start = 0, w_start = 0):
     right = image[:,-1].astype(np.int)
     right_inv = image[::-1,-1].astype(np.int)
 
-    return {"left" : [[h_start, w_start], left], "left_inv" : [[h_start, w_start], left_inv], "top" : [[h_start, w_start], top], "top_inv" : [[h_start, w_start], top_inv], 
-            "right" : [[h_start, w_start + w - 1], right], "right_inv" : [[h_start, w_start + w - 1], right_inv], 
-            "bottom" : [[h_start + h - 1 , w_start], bottom], "bottom_inv" : [[h_start + h - 1, w_start], bottom_inv]}
+    return {"left" : [[[h_start, w_start], left]], "left_inv" : [[[h_start, w_start], left_inv]], "top" : [[[h_start, w_start], top]], "top_inv" : [[[h_start, w_start], top_inv]], 
+            "right" : [[[h_start, w_start + w - 1], right]], "right_inv" : [[[h_start, w_start + w - 1], right_inv]], 
+            "bottom" : [[[h_start + h - 1 , w_start], bottom]], "bottom_inv" : [[[h_start + h - 1, w_start], bottom_inv]]}
 
-def merging(base_image, target_image, base_dict, adding_key):
-    moved_edge_dict = get_edge(target_image)
-    for idx in adding_key:
-        if idx in moved_edge_dict.keys()
-    
-    return base_image
+def base_init(base):
+    base_image, base_dict = base
+    inv_key = []
+    for base_key in base_dict.keys():
+        if base_key.find("inv") > -1:
+            inv_key.append(base_key)
+    for inv_key_idx in inv_key:
+        del base_dict[inv_key_idx]
+    return [base_image,  base_dict]
+
+def dict_transform(direction_dict, y_move = 0, x_move = 0):
+    for dict_key in direction_dict.keys():
+        for idx, [start_pos, _] in enumerate(direction_dict[dict_key]):
+            direction_dict[dict_key][idx][0][0] = start_pos[0] + y_move
+            direction_dict[dict_key][idx][0][1] = start_pos[1] + x_move
+    return direction_dict
+
                 
+def target_transform(image, base_direction, target_direction, inverse = False):
+    if base_direction % 2 == 0:
+        if inverse == True:
+            image = flipping(image)
+        if (base_direction + target_direction)%4 == 0:
+            image = mirroring(image)
+        elif (base_direction + target_direction)%4 == 1:
+            image = rotating(image)
+        elif (base_direction + target_direction)%4 == 3:
+            image = mirroring(image)
+            image = rotating(image)
+    else:
+        if inverse == True:
+            image = mirroring(image)
+        if (base_direction + target_direction)%4 == 1:
+            image = inv_rotating(image)
+        elif (base_direction + target_direction)%4 == 2:
+            image = flipping(image)
+        elif (base_direction + target_direction)%4 == 3:
+            image = inv_rotating(image)
+            image = flipping(image)
+    return image
 
+invert_direction = {"left" : "right", "top" : "bottom", "right" : "left", "bottom" : "top"}
+def merging(base_image, target_image, base_dict, adding_key):
+    h,w = target_image.shape[:2]
+    base_h, base_w = base_image.shape[:2]
+    edge_key, start_pos = adding_key[0]
+    if edge_key == "left":
+        if start_pos[1] == 0:
+            base_expand = np.zeros([base_h, base_w + w, base_image.shape[2]]).astype(np.uint8)
+            base_expand[:, w:] = base_image
+            base_image = base_expand
+            start_pos[1] += w
+            base_dict = dict_transform(base_dict, 0, w)
+        moved_edge_dict = get_edge(target_image, start_pos[0], start_pos[1] - w)
+        base_image[start_pos[0]:start_pos[0] + h, start_pos[1] - w: start_pos[1]] = target_image
+    elif edge_key == "top":
+        if start_pos[0] == 0:
+            base_expand = np.zeros([base_h + h, base_w, base_image.shape[2]]).astype(np.uint8)
+            base_expand[h:, :] = base_image
+            base_image = base_expand
+            start_pos[0] += h
+            base_dict = dict_transform(base_dict, h, 0)
+        moved_edge_dict = get_edge(target_image, start_pos[0] - h, start_pos[1])
+        base_image[start_pos[0] - h:start_pos[0], start_pos[1]: start_pos[1] + w] = target_image
+    else:
+        if start_pos[0] + 1 == base_h:
+            base_expand = np.zeros([base_h + h, base_w, base_image.shape[2]]).astype(np.uint8)
+            base_expand[:base_h, :base_w] = base_image
+            base_image = base_expand
+        elif start_pos[1] + 1 == base_w:
+            base_expand = np.zeros([base_h, base_w + w, base_image.shape[2]]).astype(np.uint8)
+            base_expand[:base_h, :base_w] = base_image
+            base_image = base_expand
+        if edge_key == "right":
+            moved_edge_dict = get_edge(target_image, start_pos[0], start_pos[1] + 1)
+            base_image[start_pos[0]:start_pos[0]+h, start_pos[1] + 1 : start_pos[1] + 1 + w] = target_image
+        elif edge_key == "bottom":
+            moved_edge_dict = get_edge(target_image, start_pos[0] + 1, start_pos[1])
+            base_image[start_pos[0] + 1 : start_pos[0] + 1 + h, start_pos[1] : start_pos[1] + w] = target_image
 
-def matching_line(base, target, target_num):
+    
+    for adding_key_idx in adding_key:
+        direction_key, _ = adding_key_idx
+        del moved_edge_dict[invert_direction[direction_key]]
+        del moved_edge_dict[invert_direction[direction_key] + "_inv"]
+    
+    for moved_edge_key in moved_edge_dict.keys():
+        if moved_edge_key.find("inv") > -1:
+            continue
+        else:
+            base_dict[moved_edge_key].append(moved_edge_dict[moved_edge_key][0])
+    
+    return base_image, base_dict
+
+def matching_image_edge(base, target, target_num):
+    merging_flag = False
     base_image, base_edge_dict = base
     target_image, target_edge_dict = target
     score = 100000000
@@ -77,21 +163,16 @@ def matching_line(base, target, target_num):
                     print(mean,std, target_num, base_edge_key, target_edge_key)
                     if mean < 10:
                         matching_edge['base_key'].append([base_edge_key, idx])
-                        matching_edge['target_key'].append([target_edge_key])
+                        matching_edge['target_key'].append(target_edge_key)
 
     adding_base_key = []
     if matching_edge['base_key'].__len__() != 0:
+        merging_flag = True
         target_key = matching_edge['target_key'][0]
         base_key, _ = matching_edge['base_key'][0]
-        #target_key len 2 mean direction and inverse
-        # if target_key.find("inv") > 1:
-        #     if target_key.find("left") > -1 or target_key.find("right"):
-        #         target_image = inv_flipping(target_image)
-        #     elif target_key.find("top") > -1 or target_key.find("bottom"):
-        #         target_image = inv_mirroring(target_image)
         #0 left, 1 top, 2 right, 3 bottom
         base_arg_value = base_edge_key_list.index(base_key)
-        target_arg_value = (target_edge_key_list.index(target_key))/2
+        target_arg_value = int((target_edge_key_list.index(target_key))/2)
         inverse_flag = False
         if target_key.find("inv") > -1:
             inverse_flag = True
@@ -99,45 +180,18 @@ def matching_line(base, target, target_num):
         for matching_edge_idx in matching_edge['base_key']:
             base_edge_key, idx = matching_edge_idx
             strat_pos = base_edge_dict[base_edge_key][idx][0]
-            base_edge_dict[base_edge_key].remove(base_edge_dict[base_edge_key][idx])
+            base_edge_dict[base_edge_key].pop(idx)
             adding_base_key.append([base_edge_key, strat_pos])
         
         
         #arg minus 0 mean flipping or mirroing, 1 mean rotating 
         base_image, base_edge_dict = merging(base_image, target_image, base_edge_dict, adding_base_key)
 
-    return [base_image, base_edge_dict]
+    return base_image, base_edge_dict, merging_flag
 
-def base_init(base):
-    base_image, base_dict = base
-    for base_key in base_dict.keys():
-        if base_key.find("inv") > -1:
-            del base_dict[base_key]
-    return [base_image,  base_dict]
 
-def target_transform(image, base_direction, target_direction, inverse = False):
 
-    if base_direction % 2 == 0:
-        if inverse == True:
-            image = flipping(image)
-        if (base_direction + target_direction)%4 == 0:
-            image = mirroring(image)
-        elif (base_direction + target_direction)%4 == 1:
-            image = rotating(image)
-        elif (base_direction + target_direction)%4 == 3:
-            image = mirroring(image)
-            image = rotating(image)
-    else:
-        if inverse == True:
-            image = mirroring(image)
-        if (base_direction + target_direction)%4 == 1:
-            image = inv_rotating(image)
-        elif (base_direction + target_direction)%4 == 2:
-            image = flipping(image)
-        elif (base_direction + target_direction)%4 == 3:
-            image = inv_rotating(image)
-            image = flipping(image)
-    return image
+
         
     
     
@@ -157,11 +211,20 @@ for idx, image_path in enumerate(image_path_list):
     image_list.append([img, get_edge(img)])
     cv2.imwrite("tmp_cut_image_{}.png".format(idx),img )
 
-base_image = base_init(image_list[0])
+base_image, base_edge_dict = base_init(image_list[0])
 
-for idx, image_idx in enumerate(image_list[1:]):
-    print(base_image[0].shape, image_idx[0].shape)
-    tmp_result = matching_line(base_image, image_idx, idx)
+cnt = 0
+image_list = image_list[1:]
+while(image_list.__len__()):
+    tmp_image_list = []
+    for idx, image_idx in enumerate(image_list):
+        cnt += 1
+        base_image, base_edge_dict, merging_flag = matching_image_edge([base_image, base_edge_dict], image_idx, idx)
+        cv2.imwrite("tmp_{}.png".format(cnt), base_image)
+        if merging_flag == False:
+            tmp_image_list.append(image_list[idx])
+    image_list = tmp_image_list
+        
 
 
 
