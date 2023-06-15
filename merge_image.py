@@ -161,7 +161,7 @@ def matching_image_edge(base, target):
                 else:
                     tmp_score = abs(target_edge_value - base_edge_value)
                     mean, std = tmp_score.mean(), tmp_score.std()
-                    print(mean,std, idx, base_edge_key, target_edge_key)
+                    # print(mean,std, idx, base_edge_key, target_edge_key)
                     if mean < 10:
                         # matching_edge['base_key'].append([base_edge_key, idx])
                         target_key_score.append([base_edge_key, idx, target_edge_key, mean])
