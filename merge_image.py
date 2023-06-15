@@ -214,16 +214,20 @@ def main(image_path, output_path):
     base_image, base_edge_dict = base_init(image_list[0])
 
     cnt = 0
+    base_image_list = []
     image_list = image_list[1:]
     while(image_list.__len__()):
         tmp_image_list = []
         for idx, image_idx in enumerate(image_list):
             cnt += 1
             base_image, base_edge_dict, merging_flag = matching_image_edge([base_image, base_edge_dict], image_idx)
-            cv2.imwrite(output_path + "{}.png".format(cnt), base_image)
+            # cv2.imwrite(output_path + "{}.png".format(cnt), base_image)
+            base_image_list.append(base_image)
             if merging_flag == False:
                 tmp_image_list.append(image_list[idx])
         image_list = tmp_image_list
+    cv2.imwrite(output_path + "result.png", base_image_list[-1])
+    print("image saved at {}".format(output_path + "result.png"))
 
 if __name__ == "__main__":
     def parse_args():
