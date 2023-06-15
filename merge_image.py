@@ -1,4 +1,5 @@
 import os, glob, cv2
+import argparse
 import numpy as np
 
 
@@ -133,11 +134,10 @@ def merging(base_image, target_image, base_dict, adding_key):
     
     return base_image, base_dict
 
-def matching_image_edge(base, target, target_num):
+def matching_image_edge(base, target):
     merging_flag = False
     base_image, base_edge_dict = base
     target_image, target_edge_dict = target
-    score = 100000000
     score_interact = ""
 
     base_edge_key_list = list(base_edge_dict.keys())
@@ -146,11 +146,12 @@ def matching_image_edge(base, target, target_num):
     matching_edge = {'base_key' : [], 'target_key' : []}
     for base_edge_key in base_edge_key_list:
         base_edge_list = base_edge_dict[base_edge_key]
-        
+        score = 100000000
+        target_key_score = []
         for target_edge_key in target_edge_key_list:
             target_edge_list = target_edge_dict[target_edge_key]
             _, target_edge_value = target_edge_list[0]
-
+            
             for idx, base_edge_idx in enumerate(base_edge_list):
                 _, base_edge_value = base_edge_idx
                 # each target list is one
@@ -160,10 +161,15 @@ def matching_image_edge(base, target, target_num):
                 else:
                     tmp_score = abs(target_edge_value - base_edge_value)
                     mean, std = tmp_score.mean(), tmp_score.std()
-                    print(mean,std, target_num, base_edge_key, target_edge_key)
+                    print(mean,std, idx, base_edge_key, target_edge_key)
                     if mean < 10:
-                        matching_edge['base_key'].append([base_edge_key, idx])
-                        matching_edge['target_key'].append(target_edge_key)
+                        # matching_edge['base_key'].append([base_edge_key, idx])
+                        target_key_score.append([base_edge_key, idx, target_edge_key, mean])
+                        # matching_edge['target_key'].append(target_edge_key)
+        if target_key_score.__len__() > 0:
+            max_score_base_key, max_score_base_key_idx, max_score_target_key, _ = min(target_key_score, key = lambda x:x[3])
+            matching_edge['base_key'].append([max_score_base_key, max_score_base_key_idx])
+            matching_edge['target_key'].append(max_score_target_key)
 
     adding_base_key = []
     if matching_edge['base_key'].__len__() != 0:
@@ -180,6 +186,7 @@ def matching_image_edge(base, target, target_num):
         for matching_edge_idx in matching_edge['base_key']:
             base_edge_key, idx = matching_edge_idx
             strat_pos = base_edge_dict[base_edge_key][idx][0]
+            
             base_edge_dict[base_edge_key].pop(idx)
             adding_base_key.append([base_edge_key, strat_pos])
         
@@ -191,40 +198,48 @@ def matching_image_edge(base, target, target_num):
 
 
 
+def main(image_path, output_path):
+    image_path_list = sorted(glob.glob(image_path + "cut_image*.jpg"))
+    base_shape = cv2.imread(image_path_list[0]).shape[:2]
+    image_list = []
+    #image load and edgeline extract
+    for idx, image_path in enumerate(image_path_list):
+        img = cv2.imread(image_path)
+        h,w = img.shape[:2]
+        if h != base_shape[0]:
+            img = inv_rotating(img)
+        image_list.append([img, get_edge(img)])
+        # cv2.imwrite("tmp_cut_image_{}.png".format(idx),img )
 
-        
+    base_image, base_edge_dict = base_init(image_list[0])
+
+    cnt = 0
+    image_list = image_list[1:]
+    while(image_list.__len__()):
+        tmp_image_list = []
+        for idx, image_idx in enumerate(image_list):
+            cnt += 1
+            base_image, base_edge_dict, merging_flag = matching_image_edge([base_image, base_edge_dict], image_idx)
+            cv2.imwrite(output_path + "{}.png".format(cnt), base_image)
+            if merging_flag == False:
+                tmp_image_list.append(image_list[idx])
+        image_list = tmp_image_list
+
+if __name__ == "__main__":
+    def parse_args():
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--input_folder_path', type=str, default = 'dataset/debugging_dataset',
+                        help='Path to the input.')
+        parser.add_argument('--output_folder_path', type=str, default = 'result/debugging_dataset',
+                        help='Path to the output.')
+        return parser.parse_args()
+
+    args = parse_args()
+    main(args.input_folder_path, args.output_folder_path)
+
     
-    
-    
-    
 
 
-image_path_list = sorted(glob.glob("./dmeta/dataset/cut_image*.jpg"))
-base_shape = cv2.imread(image_path_list[0]).shape[:2]
-image_list = []
-#image load and edgeline extract
-for idx, image_path in enumerate(image_path_list):
-    img = cv2.imread(image_path)
-    h,w = img.shape[:2]
-    if h != base_shape[0]:
-        img = inv_rotating(img)
-    image_list.append([img, get_edge(img)])
-    cv2.imwrite("tmp_cut_image_{}.png".format(idx),img )
-
-base_image, base_edge_dict = base_init(image_list[0])
-
-cnt = 0
-image_list = image_list[1:]
-while(image_list.__len__()):
-    tmp_image_list = []
-    for idx, image_idx in enumerate(image_list):
-        cnt += 1
-        base_image, base_edge_dict, merging_flag = matching_image_edge([base_image, base_edge_dict], image_idx, idx)
-        cv2.imwrite("tmp_{}.png".format(cnt), base_image)
-        if merging_flag == False:
-            tmp_image_list.append(image_list[idx])
-    image_list = tmp_image_list
-        
 
 
 

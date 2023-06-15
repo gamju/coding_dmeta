@@ -2,7 +2,7 @@ import cv2
 import random
 import numpy as np
 from itertools import product
-
+import argparse
 
 #divide shape is True
 def image_conditioning(image, height, width, columns, rows):
@@ -44,20 +44,37 @@ def random_affine(image):
 
     return image
 
-def cut_image(image_path, columns, rows):
+def cut_image(image_file_name, columns, rows, output_path = 'dataset/'):
     cut_images = []
-    image = cv2.imread(image_path)
+    image = cv2.imread(image_file_name)
     h,w = image.shape[:2]
     image, cut_height, cut_width = image_conditioning(image, h, w, columns, rows)
-    cv2.imwrite("conditioned_image.jpg", image)
+    # cv2.imwrite("conditioned_image.jpg", image)
     split_image_idx = np.arange(columns * rows)
     np.random.shuffle(split_image_idx)
     for idx, [row, col] in enumerate(product(range(1, rows + 1), range(1, columns + 1))):
         split_image = image[(row-1)*cut_height:row*cut_height, (col-1)*cut_width:col*cut_width]
         affined_image = random_affine(split_image)
         cut_images.append(affined_image)
-        cv2.imwrite("cut_image_{}.jpg".format(split_image_idx[idx]), affined_image)
+        cv2.imwrite(output_path + "cut_image_{}.jpg".format(split_image_idx[idx]), affined_image)
     
     return cut_images
 
-cut_image("dmeta/example.jpg", 3,3)
+
+
+if __name__ == "__main__":
+    def parse_args():
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--image_file_name', type=str, default = 'example.jpg',
+                        help='Path to the model script.')
+        parser.add_argument('--output_folder_name', type=str, default = 'example.jpg',
+                        help='Path to the model script.')
+        parser.add_argument('--M', type=int, default = 3,
+                            help='divide image with columns.')
+        
+        parser.add_argument('--N', type=int, default = 3,
+                            help='divide image with rows.')
+        return parser.parse_args()
+
+    args = parse_args()
+    cut_image(args.image_file_name, args.M, args.N, output_path = args.output_folder_name)
